@@ -8,8 +8,12 @@ const hbs = require("hbs");
 const mongoose = require("mongoose");
 const logger = require("morgan");
 const path = require("path");
-const MongoStore = require('connect-mongo');
-const session = require('express-session')
+const MongoStore = require("connect-mongo");
+const session = require("express-session");
+const passport = require("passport");
+const LocalStrategy = require("passport-local").Strategy;
+const User = require('./models/User.model')
+const bcrypt = require('bcrypt')
 
 const MONGODB_URI = "mongodb://127.0.0.1/lab-auth-with-passport";
 
@@ -38,16 +42,55 @@ app.use(logger("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.set('trust proxy', 1) // trust first proxy
-app.use(session({
-  secret: 'keyboard cat',
-  resave: true,
-  saveUninitialized: false,
-  cookie: { secure: true },
-  store: MongoStore.create({
-    mongoUrl: MONGODB_URI
-})
-}))
+app.set("trust proxy", 1); // trust first proxy
+app.use(
+  session({
+    secret: "keyboard cat",
+    resave: true,
+    saveUninitialized: false,
+    cookie: { secure: false },
+    store: MongoStore.create({
+      mongoUrl: MONGODB_URI,
+    }),
+  })
+);
+
+// IMPORTANT!! Before the passport.initialize
+
+passport.serializeUser((user, cb) => cb(null, user._id));
+
+passport.deserializeUser((id, cb) => {
+  User.findById(id)
+    .then((user) => cb(null, user))
+    .catch((err) => cb(err));
+});
+
+passport.use(
+  new LocalStrategy(
+    {
+      passReqToCallback: true,
+      usernameField: "username",
+      passwordField: "password",
+    },
+    function (req, username, password, done) {
+      User.findOne({ username }).then((user) => {
+        if (!user) {
+          return done(null, false, { message: "Incorrect username" });
+        }
+
+        if (
+          !bcrypt.compare(password, user.password, function (err, result) {
+            return "message: Incorrect password";
+          })
+        )
+          return done(null, user);
+      });
+    }
+  )
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Express View engine setup
 
