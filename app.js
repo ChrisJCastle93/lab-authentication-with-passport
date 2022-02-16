@@ -8,8 +8,8 @@ const hbs = require("hbs");
 const mongoose = require("mongoose");
 const logger = require("morgan");
 const path = require("path");
-const MongoStore = require('connect-mongo');
-const session = require('express-session')
+const MongoStore = require("connect-mongo");
+const session = require("express-session");
 
 const MONGODB_URI = "mongodb://127.0.0.1/lab-auth-with-passport";
 
@@ -38,16 +38,23 @@ app.use(logger("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.set('trust proxy', 1) // trust first proxy
-app.use(session({
-  secret: 'keyboard cat',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { secure: true },
-  store: MongoStore.create({
-    mongoUrl: MONGODB_URI
-})
-}))
+app.set("trust proxy", 1); // trust first proxy
+app.use(
+  session({
+    secret: "keyboard cat",
+    resave: true,
+    saveUninitialized: false,
+    cookie: {
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 60000,
+    },
+    store: MongoStore.create({
+      mongoUrl: MONGODB_URI,
+    }),
+  })
+);
 
 // Express View engine setup
 
